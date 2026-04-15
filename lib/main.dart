@@ -1,3 +1,5 @@
+//widgets novos: DropdownButtonFormField, SingleChildScrollView, Card, divider, circleavatar
+
 import 'package:flutter/material.dart';
 
 void main() {
@@ -26,17 +28,17 @@ class Projeto {
 class DadosCurriculo {
   String nome;
   String avatarUrl;
-  String escolaridade;
+  List<String> escolaridades; // Agora é uma lista
   List<Projeto> listaProjetos;
-  String recomendacoes;
+  List<String> recomendacoes; // Agora é uma lista
 
   DadosCurriculo({
     this.nome = "João Vitor Pramio",
     this.avatarUrl =
         "https://assets.nuuvem.com/image/upload/t_screenshot_full/v1/products/570bab1cf3728033c70005b7/screenshots/an47ohqoftp5shgo3ykw.jpg",
-    this.escolaridade = "Ensino Médio",
+    required this.escolaridades,
     required this.listaProjetos,
-    this.recomendacoes = "Recomendado por Flávio Manfrin",
+    required this.recomendacoes,
   });
 }
 
@@ -56,9 +58,11 @@ class _HomeCurriculoState extends State<HomeCurriculo> {
     super.initState();
     // Dados iniciais padrão
     meuCurriculo = DadosCurriculo(
+      escolaridades: ["Ensino Médio"],
       listaProjetos: [
         Projeto(titulo: "Pishield", descricao: "Análise e segurança de Redes"),
       ],
+      recomendacoes: ["Recomendado por Flávio Manfrin"],
     );
   }
 
@@ -104,36 +108,43 @@ class _HomeCurriculoState extends State<HomeCurriculo> {
             ),
             const Divider(height: 50, thickness: 1.5),
 
-            _cardSimples(
-              "Escolaridade",
-              meuCurriculo.escolaridade,
-              Icons.school,
-            ),
+            // SESSÃO DE ESCOLARIDADES
+            _tituloSessao("ESCOLARIDADE"),
+            ...meuCurriculo.escolaridades
+                .map((esc) => _cardSimples("Escolaridade", esc, Icons.school))
+                .toList(),
 
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Text(
-                "PROJETOS",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.teal,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ),
+            const SizedBox(height: 10),
 
-            // Mapeia a lista de projetos para cards individuais
+            // SESSÃO DE PROJETOS
+            _tituloSessao("PROJETOS"),
             ...meuCurriculo.listaProjetos
                 .map((proj) => _cardProjeto(proj))
                 .toList(),
 
             const SizedBox(height: 10),
-            _cardSimples(
-              "Recomendações",
-              meuCurriculo.recomendacoes,
-              Icons.comment,
-            ),
+
+            // SESSÃO DE RECOMENDAÇÕES
+            _tituloSessao("RECOMENDAÇÕES"),
+            ...meuCurriculo.recomendacoes
+                .map((rec) => _cardSimples("Recomendação", rec, Icons.comment))
+                .toList(),
           ],
+        ),
+      ),
+    );
+  }
+
+  // Widget auxiliar para os títulos das sessões
+  Widget _tituloSessao(String texto) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Text(
+        texto,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.teal,
+          letterSpacing: 1.2,
         ),
       ),
     );
@@ -215,23 +226,42 @@ class EditarCurriculo extends StatefulWidget {
 class _EditarCurriculoState extends State<EditarCurriculo> {
   late TextEditingController nomeCtrl;
   late TextEditingController urlCtrl;
-  late TextEditingController recCtrl;
+
+  // Listas dinâmicas
+  List<String> escolaridades = [];
   List<Map<String, TextEditingController>> projetoControllers = [];
-  String? escolaridade;
+  List<TextEditingController> recControllers = [];
 
   @override
   void initState() {
     super.initState();
     nomeCtrl = TextEditingController(text: widget.curriculo.nome);
     urlCtrl = TextEditingController(text: widget.curriculo.avatarUrl);
-    recCtrl = TextEditingController(text: widget.curriculo.recomendacoes);
-    escolaridade = widget.curriculo.escolaridade;
 
+    // Carregar escolaridades
+    escolaridades = List.from(widget.curriculo.escolaridades);
+
+    // Carregar projetos
     for (var proj in widget.curriculo.listaProjetos) {
       _adicionarControllersProjeto(titulo: proj.titulo, desc: proj.descricao);
     }
+
+    // Carregar recomendações
+    for (var rec in widget.curriculo.recomendacoes) {
+      _adicionarRecomendacao(texto: rec);
+    }
   }
 
+  // --- LÓGICA ESCOLARIDADE ---
+  void _adicionarEscolaridade() {
+    setState(() => escolaridades.add('Ensino Médio'));
+  }
+
+  void _removerEscolaridade(int index) {
+    setState(() => escolaridades.removeAt(index));
+  }
+
+  // --- LÓGICA PROJETOS ---
   void _adicionarControllersProjeto({String titulo = "", String desc = ""}) {
     setState(() {
       projetoControllers.add({
@@ -245,6 +275,17 @@ class _EditarCurriculoState extends State<EditarCurriculo> {
     setState(() => projetoControllers.removeAt(index));
   }
 
+  // --- LÓGICA RECOMENDAÇÕES ---
+  void _adicionarRecomendacao({String texto = ""}) {
+    setState(() {
+      recControllers.add(TextEditingController(text: texto));
+    });
+  }
+
+  void _removerRecomendacao(int index) {
+    setState(() => recControllers.removeAt(index));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -255,62 +296,54 @@ class _EditarCurriculoState extends State<EditarCurriculo> {
           _campoInput(nomeCtrl, "Nome Completo", Icons.person),
           _campoInput(urlCtrl, "URL da Foto", Icons.link),
 
-          DropdownButtonFormField<String>(
-            value: escolaridade,
-            decoration: InputDecoration(
-              labelText: "Escolaridade",
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+          // ==============================
+          // BLOCO ESCOLARIDADES
+          // ==============================
+          _tituloSessaoEdit("Escolaridades"),
+          ...escolaridades.asMap().entries.map((entry) {
+            int idx = entry.key;
+            return _containerDinamico(
+              titulo: "Escolaridade #${idx + 1}",
+              onDelete: () => _removerEscolaridade(idx),
+              conteudo: DropdownButtonFormField<String>(
+                value: escolaridades[idx],
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  prefixIcon: const Icon(Icons.school),
+                ),
+                items:
+                    [
+                          'Ensino Médio',
+                          'Ensino Técnico',
+                          'Graduação',
+                          'Pós-Graduação',
+                        ]
+                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                        .toList(),
+                onChanged: (val) => setState(() => escolaridades[idx] = val!),
               ),
-              prefixIcon: const Icon(Icons.school),
-            ),
-            items: [
-              'Ensino Médio',
-              'Ensino Técnico',
-              'Graduação',
-              'Pós-Graduação',
-            ].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-            onChanged: (val) => setState(() => escolaridade = val),
+            );
+          }).toList(),
+          TextButton.icon(
+            onPressed: _adicionarEscolaridade,
+            icon: const Icon(Icons.add),
+            label: const Text("ADICIONAR ESCOLARIDADE"),
           ),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: Text(
-              "Projetos",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.teal,
-              ),
-            ),
-          ),
-
-          // LISTA DINÂMICA DE PROJETOS NO CADASTRO
+          // ==============================
+          // BLOCO PROJETOS
+          // ==============================
+          _tituloSessaoEdit("Projetos"),
           ...projetoControllers.asMap().entries.map((entry) {
             int idx = entry.key;
             var controllers = entry.value;
-            return Container(
-              margin: const EdgeInsets.only(bottom: 15),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
+            return _containerDinamico(
+              titulo: "Projeto #${idx + 1}",
+              onDelete: () => _removerProjeto(idx),
+              conteudo: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Projeto #${idx + 1}",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _removerProjeto(idx),
-                      ),
-                    ],
-                  ),
                   _campoInput(
                     controllers["titulo"]!,
                     "Título do Projeto",
@@ -318,7 +351,7 @@ class _EditarCurriculoState extends State<EditarCurriculo> {
                   ),
                   _campoInput(
                     controllers["desc"]!,
-                    "Descrição do Projeto",
+                    "Descrição",
                     Icons.description,
                     max: 3,
                   ),
@@ -326,23 +359,45 @@ class _EditarCurriculoState extends State<EditarCurriculo> {
               ),
             );
           }).toList(),
-
           TextButton.icon(
             onPressed: () => _adicionarControllersProjeto(),
             icon: const Icon(Icons.add),
-            label: const Text("ADICIONAR NOVO PROJETO"),
+            label: const Text("ADICIONAR PROJETO"),
+          ),
+
+          // ==============================
+          // BLOCO RECOMENDAÇÕES
+          // ==============================
+          _tituloSessaoEdit("Recomendações"),
+          ...recControllers.asMap().entries.map((entry) {
+            int idx = entry.key;
+            return _containerDinamico(
+              titulo: "Recomendação #${idx + 1}",
+              onDelete: () => _removerRecomendacao(idx),
+              conteudo: _campoInput(
+                entry.value,
+                "Recomendação",
+                Icons.comment,
+                max: 2,
+              ),
+            );
+          }).toList(),
+          TextButton.icon(
+            onPressed: () => _adicionarRecomendacao(),
+            icon: const Icon(Icons.add),
+            label: const Text("ADICIONAR RECOMENDAÇÃO"),
           ),
 
           const Divider(height: 40),
-          _campoInput(recCtrl, "Recomendações", Icons.comment, max: 3),
 
-          const SizedBox(height: 20),
+          // BOTÃO SALVAR
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.teal,
               padding: const EdgeInsets.all(15),
             ),
             onPressed: () {
+              // Monta a lista final de projetos
               List<Projeto> novosProjetos = projetoControllers
                   .map(
                     (c) => Projeto(
@@ -352,14 +407,19 @@ class _EditarCurriculoState extends State<EditarCurriculo> {
                   )
                   .toList();
 
+              // Monta a lista final de recomendações
+              List<String> novasRecs = recControllers
+                  .map((c) => c.text)
+                  .toList();
+
               Navigator.pop(
                 context,
                 DadosCurriculo(
                   nome: nomeCtrl.text,
                   avatarUrl: urlCtrl.text,
-                  escolaridade: escolaridade ?? "Graduação",
+                  escolaridades: escolaridades,
                   listaProjetos: novosProjetos,
-                  recomendacoes: recCtrl.text,
+                  recomendacoes: novasRecs,
                 ),
               );
             },
@@ -371,6 +431,51 @@ class _EditarCurriculoState extends State<EditarCurriculo> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // --- WIDGETS AUXILIARES PARA A TELA DE EDIÇÃO ---
+  Widget _tituloSessaoEdit(String texto) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, bottom: 10),
+      child: Text(
+        texto,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.teal,
+        ),
+      ),
+    );
+  }
+
+  Widget _containerDinamico({
+    required String titulo,
+    required VoidCallback onDelete,
+    required Widget conteudo,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: onDelete,
+              ),
+            ],
+          ),
+          conteudo,
         ],
       ),
     );
@@ -427,7 +532,6 @@ class TelaDetalhes extends StatelessWidget {
                 color: Colors.teal,
               ),
               const SizedBox(height: 20),
-              // Exibe o Título do Projeto em Destaque
               Text(
                 texto,
                 style: const TextStyle(
@@ -438,7 +542,6 @@ class TelaDetalhes extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const Divider(height: 40, thickness: 1),
-              // Exibe a Descrição detalhada
               Text(
                 descricaoExtra ?? texto,
                 style: const TextStyle(
